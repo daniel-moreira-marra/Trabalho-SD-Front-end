@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lamport Chat - Simples</title>
+
+  <style>
+    /* ===== ESTILO GERAL DA PÁGINA ===== */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f8f4;
+      color: #1f2937;
+    }
+
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    /* ===== TOPO ===== */
+    .header {
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .header p {
+      margin: 0;
+      color: #6b7280;
+    }
+
+    /* ===== LAYOUT PRINCIPAL ===== */
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 16px;
+    }
+
+    /* ===== PAINEL LATERAL ===== */
+    .sidebar {
+      background: #ffffff;
+      border: 1px solid #d8e6dc;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(34, 84, 61, 0.05);
+    }
+
+    .sidebar h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .info-item {
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .info-label {
+      color: #6b7280;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-weight: bold;
+      color: #2f855a;
+    }
+
+    /* ===== ÁREA DO CHAT ===== */
+    .chat {
+      background: #ffffff;
+      border: 1px solid #d8e6dc;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(34, 84, 61, 0.05);
+    }
+
+    /* ===== CABEÇALHO DO CHAT ===== */
+    .chat-top {
+      padding: 16px;
+      border-bottom: 1px solid #d8e6dc;
+      background: #f7fcf8;
+    }
+
+    .chat-top h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+
+    .chat-top p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    /* ===== LISTA DE MENSAGENS ===== */
+    .messages {
+      padding: 16px;
+      min-height: 420px;
+      max-height: 420px;
+      overflow-y: auto;
+      background: #f4faf6;
+    }
+
+    /* ===== CARD DE MENSAGEM ===== */
+    .message-card {
+      background: #ffffff;
+      border: 1px solid #d8e6dc;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(34, 84, 61, 0.04);
+    }
+
+    /* Mensagem enviada pelo usuário atual */
+    .message-card.mine {
+      border-color: #b7e4c7;
+      background: #ecfdf3;
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .message-user {
+      font-weight: bold;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 12px;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+
+    .badge-node {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-lamport {
+      background: #e6f7ec;
+      color: #1f7a4d;
+    }
+
+    .message-text {
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .message-footer {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    /* ===== ÁREA DE ENVIO ===== */
+    .composer {
+      border-top: 1px solid #d8e6dc;
+      padding: 16px;
+      background: #ffffff;
+    }
+
+    .composer label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #6b7280;
+    }
+
+    .composer textarea {
+      width: 100%;
+      min-height: 70px;
+      padding: 12px;
+      border: 1px solid #d8e6dc;
+      border-radius: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+
+    .composer button {
+      margin-top: 10px;
+      border: none;
+      background: #2f855a;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .composer button:hover {
+      background: #276749;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .badge-concurrent {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #f87171;
+    }
+
+    @media (max-width: 800px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="header">
+      <h1>Chat com Relógios de Lamport </h1>
+      <p>Atividade Sistemas Distribuídos</p>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Resumo</h2>
+
+        <div class="info-item">
+          <span class="info-label">Usuário atual</span>
+          <span class="info-value" id="current-user"></span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Quantidade de nós</span>
+          <span class="info-value" id="total-nodes"></span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Total de mensagens</span>
+          <span class="info-value" id="total-messages"></span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Maior Lamport</span>
+          <span class="info-value" id="highest-lamport"></span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Último nó</span>
+          <span class="info-value" id="last-node"></span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Último usuário</span>
+          <span class="info-value" id="last-user"></span>
+        </div>
+      </aside>
+
+      <main class="chat">
+        <div class="chat-top">
+          <h2>Mensagens</h2>
+          <p>Ordenação visual: primeiro pelo Lamport e depois pelo nó.</p>
+        </div>
+
+        <section class="messages" id="messages-container"></section>
+
+        <div class="composer">
+          <textarea id="message-input" placeholder="Escreva algo..."></textarea>
+          <button id="send-button">Enviar</button>
+          <div class="hint" id="connection-status">
+            Aguardando conexão com o servidor WebSocket...
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const CONFIG = {
+      currentUser: "Rick",
+      totalNodes: 3
+    };
+
+    let messages = [];
+
+    const currentUserEl = document.getElementById("current-user");
+    const totalNodesEl = document.getElementById("total-nodes");
+    const totalMessagesEl = document.getElementById("total-messages");
+    const highestLamportEl = document.getElementById("highest-lamport");
+    const lastNodeEl = document.getElementById("last-node");
+    const lastUserEl = document.getElementById("last-user");
+    const messagesContainer = document.getElementById("messages-container");
+    const messageInput = document.getElementById("message-input");
+    const sendButton = document.getElementById("send-button");
+    const statusHint = document.getElementById("connection-status");
+
+    // Ordenação Total baseada em Lamport
+    function sortMessages(list) {
+      return [...list].sort((a, b) => {
+        if (a.lamport !== b.lamport) {
+          return a.lamport - b.lamport;
+        }
+        // Desempate
+        if (a.user < b.user) return -1;
+        if (a.user > b.user) return 1;
+        return 0;
+      });
+    }
+
+    function renderMessages() {
+      const orderedMessages = sortMessages(messages);
+      messagesContainer.innerHTML = "";
+
+      orderedMessages.forEach((msg) => {
+        const card = document.createElement("div");
+        const isMine = msg.user === CONFIG.currentUser;
+        card.className = isMine ? "message-card mine" : "message-card";
+
+        // Lógica visual para flags de concorrência
+        let badgesHtml = `
+          <span class="badge badge-node">Gateway</span>
+          <span class="badge badge-lamport">Lamport ${msg.lamport}</span>
+        `;
+        
+        if (msg.is_concurrent) {
+          badgesHtml += `<span class="badge badge-concurrent">⚠️ Concorrente</span>`;
+        }
+
+        card.innerHTML = `
+          <div class="message-header">
+            <div class="message-user">${msg.user}</div>
+            <div class="badges">${badgesHtml}</div>
+          </div>
+          <div class="message-text">${msg.message}</div>
+          <div class="message-footer">Horário: ${msg.timestamp}</div>
+        `;
+
+        messagesContainer.appendChild(card);
+      });
+
+      updateSidebar(orderedMessages);
+    }
+
+    function updateSidebar(orderedMessages) {
+      const totalMessages = orderedMessages.length;
+      const highestLamport = orderedMessages.reduce((max, msg) => Math.max(max, msg.lamport), 0);
+      const lastMessage = orderedMessages[orderedMessages.length - 1];
+
+      currentUserEl.textContent = CONFIG.currentUser;
+      totalNodesEl.textContent = CONFIG.totalNodes;
+      totalMessagesEl.textContent = totalMessages;
+      highestLamportEl.textContent = highestLamport;
+      lastNodeEl.textContent = "Gateway Nginx";
+      lastUserEl.textContent = lastMessage ? lastMessage.user : "-";
+    }
+
+    function getCurrentTime() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    }
+
+    // CONECTANDO NO TRADUTOR PYTHON
+    let ws;
+    function conectar() {
+      ws = new WebSocket("ws://localhost:8081");
+
+      ws.onopen = () => {
+        statusHint.textContent = "🟢 Conectado ao Tradutor TCP. Chat pronto!";
+        statusHint.style.color = "#2f855a";
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const incomingMessage = JSON.parse(event.data);
+          messages.push(incomingMessage);
+          renderMessages();
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } catch (error) {
+          console.error("Erro no parse:", error);
+        }
+      };
+
+      ws.onerror = () => {
+        statusHint.textContent = "🔴 Erro de conexão com o Tradutor.";
+        statusHint.style.color = "#c53030";
+      };
+
+      ws.onclose = () => {
+        statusHint.textContent = "🟡 Desconectado. Reconectando...";
+        statusHint.style.color = "#b7791f";
+        setTimeout(conectar, 2000);
+      };
+    }
+
+    conectar();
+
+    function sendRealMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+      if (ws.readyState !== WebSocket.OPEN) return;
+
+      const newMessage = {
+        user: CONFIG.currentUser,
+        message: text,
+        timestamp: getCurrentTime()
+      };
+
+      ws.send(JSON.stringify(newMessage));
+      messageInput.value = "";
+    }
+
+    sendButton.addEventListener("click", sendRealMessage);
+    messageInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendRealMessage();
+      }
+    });
+
+    renderMessages();
+  </script>
+</body>
+
+</html>
